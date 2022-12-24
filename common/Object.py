@@ -42,3 +42,10 @@ class Object:
                 self.y += distance
             case Moves.RIGHT:
                 self.x += distance
+
+    def collide(self, object):
+        if self.get_top_y() < object.get_bottom_y() and self.get_bottom_y() > object.get_top_y()\
+                and self.get_right_x() > object.get_left_x() and self.get_left_x() < object.get_right_x():
+            return True
+        else:
+            return False

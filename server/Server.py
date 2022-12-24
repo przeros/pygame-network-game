@@ -1,12 +1,16 @@
 import pickle
+import random
 import socket
 import threading
 import time
+from datetime import datetime
 
 import select
 from threading import Thread
 
+from common.Configuration import Configuration
 from common.Game import Game
+from common.Object import Object
 
 
 class Server:
@@ -46,6 +50,22 @@ class Server:
         except:
             return False
 
+    def object_generator(self):
+        while True:
+            time.sleep(2)
+            if len(self.game.objects) < 8:
+                x = random.randint(50, Configuration.WINDOW_WIDTH - 50)
+                y = random.randint(50, Configuration.WINDOW_HEIGHT - 50)
+                self.game.add_object(
+                    Object(datetime.now(),
+                           x,
+                           y,
+                           50,
+                           50,
+                           Configuration.OBJECT_IMAGE_KEY)
+                )
+                self.broadcast_game()
+
     def listen(self):
         while True:
             try:
@@ -66,14 +86,15 @@ class Server:
             self.client_ips.append(client_ip_port[0])
             self.client_ports.append(client_ip_port[1])
         self.runThread(self.receive_controller, (client_socket, client_ip_port[0], client_ip_port[1]),
-                       f"Server Receiver {client_ip_port[0]} + {client_ip_port[1]}", False)
+                       f"Server Receiver {client_ip_port[0]} + {client_ip_port[1]}", True)
 
     def broadcast_game(self):
         game_to_string = pickle.dumps(self.game.__copy__())
         if len(self.client_sockets) > 0:
             try:
+                print("BROADCASTING GAME")
                 for socket in self.client_sockets:
-                    socket.sendall(game_to_string)
+                    socket.send(game_to_string)
 
             except socket.error:
                 print("ERROR WITH SENDING GAME DATA TO CLIENTS")
@@ -81,18 +102,18 @@ class Server:
     def receive_controller(self, client_socket, client_ip, client_port):
         while True:
             try:
+                #with self.clients_lock:
                 (ready_to_read, ready_to_write, connection_error) = select.select([client_socket], [], [])
-                with self.clients_lock:
-                    game_to_string = client_socket.recv(self.MSG_LENGTH)
-                    if len(game_to_string) > 0:
-                        self.game = pickle.loads(game_to_string)
-                        self.broadcast_game()
-                    else:
-                        self.client_sockets.remove(client_socket)
-                        self.client_ips.remove(client_ip)
-                        self.client_ports.remove(client_port)
-                        print(f"Client has DISCONNECTED\nIP: {client_ip}\nPORT: {client_port}")
-                        break
+                game_to_string = client_socket.recv(self.MSG_LENGTH)
+                if len(game_to_string) > 0:
+                    self.game = pickle.loads(game_to_string)
+                    self.broadcast_game()
+                else:
+                    self.client_sockets.remove(client_socket)
+                    self.client_ips.remove(client_ip)
+                    self.client_ports.remove(client_port)
+                    print(f"Client has DISCONNECTED\nIP: {client_ip}\nPORT: {client_port}")
+                    break
 
             except select.error:
                 client_socket.close()

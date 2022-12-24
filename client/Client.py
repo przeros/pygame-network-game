@@ -50,21 +50,30 @@ class Client:
         while True:
             try:
                 game_to_string = self.client_socket.recv(self.MSG_LENGTH)
+                #print(len(game_to_string))
                 if len(game_to_string) > 0:
-                    self.game = pickle.loads(game_to_string)
+                    try:
+                        self.game = pickle.loads(game_to_string)
+                    except:
+                        self.client_socket.close()
+                        print(f"ERROR WITH PICKLE LOADING\nIP: {self.server_ip}\nPORT: {self.server_port}")
+
                 else:
                     print(f"ERROR IN RECEIVING GAME DATA\nIP: {self.ip}\nPORT: {self.port}")
                     break
 
             except socket.error:
+                self.client_socket.close()
                 print(f"ERROR IN CONNECTION WITH SERVER\nIP: {self.server_ip}\nPORT: {self.server_port}")
                 break
 
     def send_game(self):
         game_to_string = pickle.dumps(self.game.__copy__())
         try:
+            print("SENDING GAME")
             self.client_socket.send(game_to_string)
         except socket.error:
+            self.client_socket.close()
             print("ERROR WITH SENDING GAME DATA TO SERVER")
 
     '''def sendMessage(self, message):
